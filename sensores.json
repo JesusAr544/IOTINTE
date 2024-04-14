@@ -1,0 +1,30 @@
+[
+    {
+        "name": "Humedad",
+        "unidad_de_medida": "%"
+    },
+    {
+        "name": "Temperatura",
+        "unidad_de_medida": "°C"
+    },
+    {
+        "name": "FotoResistencia",
+        "unidad_de_medida": "Boleano"
+    },
+    {
+        "name": "Voltaje",
+        "unidad_de_medida": "V"
+    },
+    {
+        "name": "Infrarrojo",
+        "unidad_de_medida": "Boleano"
+    },
+    {
+        "name": "Magnetico",
+        "unidad_de_medida": "Boleano"
+    },
+    {
+        "name": "Humo",
+        "unidad_de_medida": "Boleano"
+    }
+]
