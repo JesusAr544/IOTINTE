@@ -8,6 +8,7 @@ class ConexionMongoDB:
         self.client = None
         self.db_name = "Integrador"
         self.collection_name = "sensor_data"
+        self.isconexion = False
         self.db = None
         self.collection = None
 
@@ -16,20 +17,28 @@ class ConexionMongoDB:
             self.client = pymongo.MongoClient("mongodb+srv://jesusaranda5446373773:2uDKpO465FuUDvwM@cluster0.sosxkit.mongodb.net/?retryWrites=true&w=majority")
             self.db = self.client[self.db_name]
             self.collection = self.db[self.collection_name]
+            print("Conexión con la base de datos establecida")
+            self.isconexion = True
         except Exception as e:
+            self.isconexion = False
             raise ConnectionError("Error al conectar con la base de datos:", e)
 
     def guardar_datos_many(self, data):
+        print(data)
         try:
             self.collection.insert_many(data)
             print("Datos guardados en la base de datos")
+            return True
         except Exception as e:
             print("Error al guardar los datos en la base de datos:", e)
+            return False
     
     def cerrar_conexion(self):
         if self.client:
             self.client.close()
             print("Conexión con la base de datos cerrada")
+
+
 class ConexionSocket:
     def __init__(self):
         self.host = "0.0.0.0"
@@ -56,94 +65,111 @@ class ConexionSocket:
 
 class ConexionApi:
     def __init__(self):
-        self.url = "http://127.0.0.1:8000/api/auth"
+        self.base_url = "http://127.0.0.1:8000/api/auth"
         self.session = requests.Session()
         self.headers = {}
-        self.is_conexion = self.is_conexion_valida()
+        self.is_conexion = False
 
-    def is_conexion_valida(self):
+    def is_connection_valid(self):
         try:
             response = self.session.get("http://127.0.0.1:8000")
-            return response.status_code == 200
+            self.login()
+            self.is_conexion = True if response.status_code == 200 else False
         except requests.exceptions.RequestException:
-            return False
+            self.is_conexion = False
+        except ConnectionError as e:
+            self.is_conexion = False
+            print("Error saving room data:", e)
 
     def login(self):
-        if self.is_conexion:
-            path = "/login"
-            url = self.url + path
-            data = {
-                "email": "jesusaranda8714544@hotmail.com",
-                "password": "Alicia544."
-            }   
-            try:
-                response = requests.post(url, data=data, headers=self.headers)
-                if response.status_code == 200:
-                    json_response = response.json()
-                    token = json_response['access_token']
-                    role_id = str(json_response['role_id'])
-                    self.headers = {
-                        "Authorization": "Bearer " + token,
-                        "role_id": role_id
-                    }
-                    return True
-            except Exception as e:
-                self.is_conexion = False
-                print("Error en el inicio de sesión:", e)
+            
+        path = "/login"
+        url = self.base_url + path
+        data = {
+            "email": "jesusaranda8714544@hotmail.com",
+            "password": "Alicia544."
+        }   
+        try:
+            response = self.session.post(url, data=data)
+            if response.status_code == 200:
+                json_response = response.json()
+                token = json_response['access_token']
+                role_id = str(json_response['role_id'])
+                self.headers = {
+                    "Authorization": "Bearer " + token,
+                    "role_id": role_id
+                }
+                self.is_conexion = True
+                return True
+            else:
+                print("Login failed with status code:", response.status_code)
+        except ConnectionError as e:
+            self.is_conexion = False
+            
+            print("Error saving room data:", e)
+            return False
+        except Exception as e:
+            self.is_conexion = False
+            print("Error during login:", e)
+            return False
+
         return False
 
-    def obtener_habitaciones(self):
+    def get_rooms(self):
         try:
-            if self.is_conexion:
-                path = "/habitaciones"
-                url = self.url + path
-                response = self.session.get(url, headers=self.headers)
-                if response.status_code == 200:
-                    with open("roomsApi.json", "w") as file:
-                        json.dump(response.json(), file)
-                    return response.json()
+            if not self.is_conexion:
+                return None
+                
+            path = "/habitaciones"
+            url = self.base_url + path
+            response = self.session.get(url, headers=self.headers)
+            if response.status_code == 200:
+                with open("roomsApi.json", "w") as file:
+                    json.dump(response.json(), file)
+                return response.json()
+            else:
+                print("Failed to get rooms with status code:", response.status_code)
+        except ConnectionError as e:
+            self.is_conexion = False
+            print("Error saving room data:", e)
+            return False
         except Exception as e:
             self.is_conexion = False
-            print("Error al obtener las habitaciones:", e)
+            print("Error getting rooms:", e)
+            return False
+        
         return None
 
-    def guardar_datos_habitacion(self, name, data, room_id, date_time):
+    def save_room_data(self, name, data, room_id, date_time):
         try:
-            if self.is_conexion:
-                url = "http://127.0.0.1:8000/api/sensores"
-                json_data = {
-                    "name": name,
-                    "data": data,
-                    "room_id": room_id,
-                    "date_time": date_time
-                }
-                response = self.session.post(url, json=json_data, headers=self.headers)
-                if response.status_code == 200:
-                    return response.json()
+            if not self.is_conexion:
+                return None
+                
+            url = "http://127.0.0.1:8000/api/sensores"
+            json_data = {
+                "name": name,
+                "data": data,
+                "room_id": room_id,
+                "date_time": date_time
+            }
+            response = self.session.post(url, json=json_data, headers=self.headers)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                print("Failed to save room data with status code:", response.status_code)
+                return False
+        
+        except ConnectionError as e:
+            self.is_conexion = False
+            print("Error de conexión al guardar datos de habitación:", e)
+            return False
         except Exception as e:
             self.is_conexion = False
-            print("Error al guardar datos de la habitación:", e)
+            print("Error saving room data:", e)
+            return False
         return None
 
 
 
 
 
-if __name__ == "__main__":
-    data = [
-        {
-            "name": "sensor1",
-            "data": 25,
-            "room_id": 1,
-            "date_time": "2021-09-10 12:00:00"
-        },
-        {
-            "name": "sensor2",
-            "data": 30,
-            "room_id": 1,
-            "date_time": "2021-09-10 12:00:00"
-        }
-    ]
-    conexion = ConexionMongoDB()
-    conexion.conectar()
-    conexion.guardar_datos_many(data)

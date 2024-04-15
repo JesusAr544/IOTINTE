@@ -7,7 +7,6 @@ class Arreglo:
         self.conexionS = ConexionSocket()  # Inicializar una instancia de la clase ConexionSocket
         self.conexionA = ConexionApi()      # Inicializar una instancia de la clase ConexionApi
         self.conexionM = ConexionMongoDB()  # Inicializar una instancia de la clase ConexionMongoDB
-        self.conexionM.conectar()           # Conectar a la base de datos
         self.GuardoDatos = False
         
         # Inicializar la lista de elementos
@@ -19,6 +18,8 @@ class Arreglo:
     # Método para agregar un elemento a la lista
     def agregar_elemento(self, elemento):
         self.elementos.append(elemento)
+    
+    
 
     # Método para eliminar un elemento de la lista
     def eliminar_elemento(self, elemento):
@@ -34,7 +35,7 @@ class Arreglo:
                 self.GuardoDatos = True
 
     # Método para cargar elementos desde un archivo JSON
-    def cargar(self, filename):
+    def cargar_rooms(self, filename):
         try:
             with open(filename, "r") as file:
                 data = json.load(file)  # Carga los datos desde el archivo JSON

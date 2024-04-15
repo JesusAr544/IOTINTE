@@ -1,9 +1,5 @@
 import datetime
-import json
-import requests
-import socket
 from arreglo import Arreglo
-from conexion import ConexionSocket
 from sensor import Sensor
 from dato import Data
 
@@ -12,19 +8,13 @@ class Room(Arreglo):
         if nombre is None:
             super().__init__()
             self.isarreglo = True
-            self.rooms_info = self.obtener_rooms_info()
-            self.crearRoom()
+            self.rooms_info = []
+            self.GuardoDatos = False 
         else:
             self.id_room = id_room
             self.nombre = nombre
             self.sensores = Sensor()
             self.isarreglo = False
-
-    def obtener_rooms_info(self):
-        if self.conexionA.is_conexion:
-            return self.conexionA.obtener_habitaciones()
-        else:
-            return self.cargarRoomApi()
 
     def __str__(self):
         if self.isarreglo:
@@ -70,8 +60,8 @@ class Room(Arreglo):
     def guardar(self):
         return super().guardar("rooms.json")
 
-    def cargar(self):
-        return super().cargar("rooms.json")
+    def cargar_rooms(self):
+        return super().cargar_rooms("rooms.json")
 
     def leer(self):
         self.conexionS.iniciar_servidor()
@@ -79,18 +69,25 @@ class Room(Arreglo):
             data = self.conexionS.recibir_datos()
             self.cargarDatos(data)
 
+    def obtener_rooms_info(self):
+        if self.conexionA.is_conexion:
+            self.rooms_info = self.conexionA.get_rooms()
+        else:
+            self.rooms_info = self.cargarRoomApi()
+        self.crearRoom()
+
     def crearRoom(self):
-        sensoresJ = self.cargarSensoresJson()
-        roomsJ = self.cargarRoomApi()
-        for room in roomsJ:
-            sensores = Sensor()
-            for sensor in sensoresJ:
-                new_sensor = Sensor(sensor['name'], sensor['unidad_de_medida'])
-                sensores.agregar_elemento(new_sensor)
-            new_room = Room(room['nombre'], room['id'])
-            new_room.sensores = sensores
-            sensores = Sensor()
-            self.agregar_elemento(new_room)
+            sensoresJ = self.cargarSensoresJson()
+            roomsJ = self.cargarRoomApi()
+            for room in roomsJ:
+                sensores = Sensor()
+                for sensor in sensoresJ:
+                    new_sensor = Sensor(sensor['name'], sensor['unidad_de_medida'])
+                    sensores.agregar_elemento(new_sensor)
+                new_room = Room(room['nombre'], room['id'])
+                new_room.sensores = sensores
+                sensores = Sensor()
+                self.agregar_elemento(new_room)
 
     def cargarDatos(self, dataS):
         for room in self.elementos:
@@ -100,37 +97,64 @@ class Room(Arreglo):
                         new_date = Data(sensor_data['valor'], datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                         sensor.datos.agregar_elemento(new_date)
                         break
+
         self.guardarDatos()
 
     def guardarDatos(self):
-        if self.conexionA.is_conexion:
-            for room in self.elementos:
-                for sensor in room.sensores.elementos:
-                    for data in sensor.datos.elementos:
-                        self.conexionA.guardar_datos_habitacion(sensor.nombre, data.dato, room.id_room, data.datatime)
-                sensor.datos.elementos = []
-                print(self.GuardoDatos)
-            if self.GuardoDatos:
-                datosg = Room()
-                datosg.deserealizar(datosg.cargar())
-                json_data = []
-                for room in self.elementos:
-                    for sensor in room.sensores.elementos:
-                        for data in sensor.datos.elementos:
-                            json = {
-                                "name": sensor.nombre,
-                                "data": data.dato,
-                                "room_id": room.id_room,
-                                "date_time": data.datatime
-                            }
-                            json_data.append(json)
-                print(json_data)
-                datosg.conexionM.guardar_datos_many(json_data)
-                datosg.elementos = []
-        else:
-            self.conexionA.is_conexion = self.conexionA.is_conexion_valida()
+        if not self.conexionA.is_conexion:
+            self.conexionA.is_connection_valid()
             self.guardar()
+            self.GuardoDatos = True
+            return
+
+        for room in self.elementos:
+            for sensor in room.sensores.elementos:
+                for data in sensor.datos.elementos:
+                    json_data = {
+                        "name": sensor.nombre,
+                        "data": data.dato,
+                        "room_id": room.id_room,
+                        "date_time": data.datatime
+                    }
+                    print(json_data)
+                    continuar = self.conexionA.save_room_data(json_data['name'], json_data['data'], json_data['room_id'], json_data['date_time'])
+                    if not continuar:
+                        self.conexionA.is_conexion = False
+                        self.guardar()
+                sensor.datos.elementos = []
+                        
+        
+                
+                
+        
+        if self.GuardoDatos:
+            if self.conexionM.isconexion:
+                self.guardar_Datos_Mongo()
+                self.GuardoDatos = False
+            else:
+                self.conexionM.conectar()
+
+    def guardar_Datos_Mongo(self):
+        data = Room()
+        data = data.deserealizar(data.cargar_rooms())
+        json_data = []
+        for room in data.elementos:
+            for sensor in room.sensores.elementos:
+                for data in sensor.datos.elementos:
+                    json = {
+                        "name": sensor.nombre,
+                        "data": data.dato,
+                        "room_id": room.id_room,
+                        "date_time": data.datatime
+                    }
+                    json_data.append(json)
+        data = Room()
+        data.guardar()
+        self.conexionM.guardar_datos_many(json_data)
 
 if __name__ == "__main__":
+    from room import Room
     room = Room()
+    room.obtener_rooms_info()
+    room.conexionM.conectar()
     room.leer()
