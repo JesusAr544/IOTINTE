@@ -6,7 +6,7 @@ import pymongo
 class ConexionMongoDB:
     def __init__(self):
         self.client = None
-        self.db_name = "Integrador"
+        self.db_name = "Integradora"
         self.collection_name = "sensor_data"
         self.isconexion = False
         self.db = None
@@ -14,7 +14,7 @@ class ConexionMongoDB:
 
     def conectar(self):
         try:
-            self.client = pymongo.MongoClient("mongodb+srv://jesusaranda5446373773:2uDKpO465FuUDvwM@cluster0.sosxkit.mongodb.net/?retryWrites=true&w=majority")
+            self.client = pymongo.MongoClient("mongodb+srv://Alejandro:2212@cluster0.6wybzch.mongodb.net/?retryWrites=true&w=majority")
             self.db = self.client[self.db_name]
             self.collection = self.db[self.collection_name]
             print("Conexión con la base de datos establecida")
@@ -56,6 +56,8 @@ class ConexionSocket:
         with client_socket:
             data = client_socket.recv(1024)
             data = json.loads(data.decode())
+            
+            
             return data
 
     def cerrar_servidor(self):
@@ -65,14 +67,14 @@ class ConexionSocket:
 
 class ConexionApi:
     def __init__(self):
-        self.base_url = "http://127.0.0.1:8000/api/auth"
+        self.base_url = "http://18.222.122.162/api/auth"
         self.session = requests.Session()
         self.headers = {}
         self.is_conexion = False
 
     def is_connection_valid(self):
         try:
-            response = self.session.get("http://127.0.0.1:8000")
+            response = self.session.get("http://18.222.122.162")
             self.login()
             self.is_conexion = True if response.status_code == 200 else False
         except requests.exceptions.RequestException:
@@ -87,7 +89,7 @@ class ConexionApi:
         url = self.base_url + path
         data = {
             "email": "jesusaranda8714544@hotmail.com",
-            "password": "Alicia544."
+            "password": "12345678"
         }   
         try:
             response = self.session.post(url, data=data)
@@ -97,7 +99,7 @@ class ConexionApi:
                 role_id = str(json_response['role_id'])
                 self.headers = {
                     "Authorization": "Bearer " + token,
-                    "role_id": role_id
+                    "Role-ID": role_id
                 }
                 self.is_conexion = True
                 return True
@@ -120,7 +122,7 @@ class ConexionApi:
             if not self.is_conexion:
                 return None
                 
-            path = "/habitaciones"
+            path = "/habitacionesTodas"
             url = self.base_url + path
             response = self.session.get(url, headers=self.headers)
             if response.status_code == 200:
@@ -145,7 +147,7 @@ class ConexionApi:
             if not self.is_conexion:
                 return None
                 
-            url = "http://127.0.0.1:8000/api/sensores"
+            url = "http://18.222.122.162/api/auth/sensores"
             json_data = {
                 "name": name,
                 "data": data,
@@ -167,9 +169,109 @@ class ConexionApi:
             self.is_conexion = False
             print("Error saving room data:", e)
             return False
-        return None
+        
+    
+    def save_notificacion(self, room_id, type, data):
+        try:
+            if not self.is_conexion:
+                return None
+                
+            url = "http://18.222.122.162/api/auth/notificaciones"
+            json_data = {
+                "room_id": room_id,
+                "data": data,
+                "type": type
+            }
+            response = self.session.post(url, json=json_data, headers=self.headers)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return False
+        
+        except ConnectionError as e:
+            self.is_conexion = False
+            return False
+        except Exception as e:
+            self.is_conexion = False
+            return False
+        
+    def estado_sensor(self):
+            try:
+                if not self.is_conexion:
+                    return None
+                    
+                url = "http://18.222.122.162/api/auth/alarmaestado"
+                response = self.session.get(url,headers=self.headers)
+                if response.status_code == 200:
+                    return response.json()
+                else:
+                    return False
+            
+            except ConnectionError as e:
+                self.is_conexion = False
+                return False
+            except Exception as e:
+                self.is_conexion = False
+                return False
+            
+    def apagar_alarma(self,ids):
+            try:
+                if not self.is_conexion:
+                    return None
+                for id in ids:
+                    
+                    url = "http://18.222.122.162/api/auth/alarma/"+str(id)
+                    response = self.session.put(url,headers=self.headers)
+                    if response.status_code == 200:
+                        return response.json()
+                    else:
+                        return False
+            
+            except ConnectionError as e:
+                self.is_conexion = False
+                return False
+            except Exception as e:
+                self.is_conexion = False
+                return False
+            
+
+    def encender_alarma(self,ids):
+            try:
+                if not self.is_conexion:
+                    return None
+                for id in ids:
+                    
+                    url = "http://18.222.122.162/api/auth/alarmaActiva/"+str(id)
+                    response = self.session.put(url,headers=self.headers)
+                    if response.status_code == 200:
+                        return response.json()
+                    else:
+                        return False
+            
+            except ConnectionError as e:
+                self.is_conexion = False
+                return False
+            except Exception as e:
+                self.is_conexion = False
+                return False
 
 
+class conexionSocketEnviar:
+    def __init__(self):
+        self.host = "192.168.137.16"
+        self.port = 1234
+        self.client_socket = None
 
+    def conectar_servidor(self):
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket.connect((self.host, self.port))
+
+    def enviar_datos(self):
+            data = {
+                "nombre": "Juan",
+                "apellido": "Perez",
+                "edad": 30
+            }
+            self.client_socket.sendall(json.dumps(data).encode())
 
 
