@@ -14,12 +14,14 @@ class ConexionMongoDB:
 
     def conectar(self):
         try:
-            self.client = pymongo.MongoClient("mongodb+srv://Alejandro:2212@cluster0.6wybzch.mongodb.net/?retryWrites=true&w=majority")
+            self.client = pymongo.MongoClient("mongodb://3.145.19.75:27117")
             self.db = self.client[self.db_name]
             self.collection = self.db[self.collection_name]
             print("Conexión con la base de datos establecida")
-            self.isconexion = True
+            
+            return True
         except Exception as e:
+            
             self.isconexion = False
             raise ConnectionError("Error al conectar con la base de datos:", e)
 
@@ -28,14 +30,17 @@ class ConexionMongoDB:
         try:
             self.collection.insert_many(data)
             print("Datos guardados en la base de datos")
+            self.isconexion = True
             return True
         except Exception as e:
             print("Error al guardar los datos en la base de datos:", e)
+            self.isconexion = False
             return False
     
     def cerrar_conexion(self):
         if self.client:
             self.client.close()
+            self.isconexion = False
             print("Conexión con la base de datos cerrada")
 
 
@@ -74,6 +79,7 @@ class ConexionApi:
 
     def is_connection_valid(self):
         try:
+            
             response = self.session.get("http://18.222.122.162")
             self.login()
             self.is_conexion = True if response.status_code == 200 else False

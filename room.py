@@ -2,7 +2,7 @@ import datetime
 from arreglo import Arreglo
 from sensor import Sensor
 from dato import Data
-import threading
+
 
 class Room(Arreglo):
     def __init__(self, nombre=None, id_room=None):
@@ -11,7 +11,6 @@ class Room(Arreglo):
             self.isarreglo = True
             self.rooms_info = []
             self.GuardoDatos = False 
-            self.alarma = False
         else:
             self.id_room = id_room
             self.nombre = nombre
@@ -72,8 +71,8 @@ class Room(Arreglo):
             self.cargarDatos(data)
 
     def obtener_rooms_info(self):
-        self.conexionA.is_connection_valid()
-        if self.conexionA.is_conexion:
+       
+        if  self.conexionA.is_connection_valid():
             print("Obteniendo rooms info")
             self.rooms_info = self.conexionA.get_rooms()
         else:
@@ -82,7 +81,7 @@ class Room(Arreglo):
 
     def crearRoom(self):
             sensoresJ = self.cargarSensoresJson()
-            roomsJ = self.cargarRoomApi()
+            roomsJ = self.rooms_info
             for room in roomsJ:
                 sensores = Sensor()
                 for sensor in sensoresJ:
@@ -97,70 +96,48 @@ class Room(Arreglo):
         for room in self.elementos:
             for sensor in room.sensores.elementos:
                 for sensor_data in dataS:
-                    if sensor_data['name'] == "Temperatura" and sensor_data['valor'] > "33":
-                            if not self.alarma:
-                                for rooms in self.elementos:
-                                    self.conexionA.encender_alarma(rooms.id_room)
-                                self.conexionA.save_notificacion(room.id_room, "media", "Temperatura fuera de rango")
-                                self.alarma = True
-                    if sensor_data['name'] == "Humedad" and sensor_data['valor'] > "80":
-                            if not self.alarma:
-                                self.conexionA.save_notificacion(room.id_room, "media", "Humedad fuera de rango")    
-                                self.alarma = True
-                    if sensor_data['name'] == "FotoResistencia" and sensor_data['valor'] > 1:
-                            if not self.alarma:
-                                self.conexionA.save_notificacion(room.id_room, "media", "Luz fuera de rango")
-                                self.alarma = True
-                    if sensor_data['name'] == "Voltaje" and sensor_data['valor'] == 5:
-                            if not self.alarma:
-                                self.conexionA.save_notificacion(room.id_room, "media", "Movimiento detectado")
-                                self.alarma = True
-                    if sensor_data['name'] == "Infrarrojo" and sensor_data['valor'] == 1:
-                            if not self.alarma:
-                                self.conexionA.save_notificacion(room.id_room, "media", "Movimiento detectado")    
-                                self.alarma = True
-                    if sensor_data['name'] == "Magnetico" and sensor_data['valor'] == 1:
-                            if not self.alarma:
-                                self.conexionA.save_notificacion(room.id_room, "media", "Se abrio la puerta")    
-                                self.alarma = True
-                    if sensor_data['name'] == "Humo" and sensor_data['valor'] == "Gas Detectado":
-                            if not self.alarma:
-                                self.conexionA.save_notificacion(room.id_room, "media", "Gas detectado")
-                                self.alarma = True
-    
+                    self.notificar(room.id_room, sensor_data['name'], sensor_data['valor'])         
                     if sensor.nombre == sensor_data['name']:
                         new_date = Data(sensor_data['valor'], datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                         sensor.datos.agregar_elemento(new_date)
                         break
-
-
-
-
-
-        self.alarma = False
         self.guardarDatos()
 
+
+    def notificar(self, room_id, sensorname, sensor_data):
+        if sensorname == "Temperatura" and sensor_data['valor'] > 33:                
+            self.conexionA.save_notificacion(room_id, "media", "Temperatura fuera de rango")
+        if sensorname == "Humedad" and sensor_data['valor'] > 80:
+            self.conexionA.save_notificacion(room_id, "media", "Humedad fuera de rango")    
+        if sensorname == "FotoResistencia" and sensor_data['valor'] > 1:
+            self.conexionA.save_notificacion(room_id, "media", "Luz fuera de rango")                   
+        if sensorname == "Voltaje" and sensor_data['valor'] == 5:
+            self.conexionA.save_notificacion(room_id, "media", "Movimiento detectado")
+        if sensorname == "Infrarrojo" and sensor_data['valor'] == 1:
+            self.conexionA.save_notificacion(room_id, "media", "Movimiento detectado")    
+        if sensorname == "Magnetico" and sensor_data['valor'] == 1:
+            self.conexionA.save_notificacion(room_id, "media", "Se abrio la puerta")    
+        if sensorname == "Humo" and sensor_data['valor'] == "Gas Detectado":
+            self.conexionA.save_notificacion(room_id, "media", "Gas detectado")
     
+    def ApagarAlarmaSp32(self):
+        from conexion import conexionSocketEnviar
+        socket = conexionSocketEnviar()
+        socket.conectar_servidor()
+        socket.enviar_datos()
 
     def guardarDatos(self):
-        from conexion import conexionSocketEnviar
+        
         if not self.conexionM.isconexion:
             self.conexionM.conectar()
             self.guardar()
             self.GuardoDatos = True
-            self.elementos = []
-            self.obtener_rooms_info()
             return
         
         es = self.conexionA.estado_sensor()
         if es['status']:
             self.conexionA.apagar_alarma(es['habitaciones'])
-            socket = conexionSocketEnviar()
-            socket.conectar_servidor()
-            socket.enviar_datos()
-
-        
-
+            
         json_datas = []
         for room in self.elementos:
             for sensor in room.sensores.elementos:
@@ -172,16 +149,21 @@ class Room(Arreglo):
                         "date_time": data.datatime
                     }
                     json_datas.append(json_data)
-                    print(json_data)
-                if self.conexionM.isconexion:
-                    sensor.datos.elementos = []
         if self.conexionM.isconexion:
             print("Guardando datos")
-            self.conexionM.guardar_datos_many(json_datas)
+            res = self.conexionM.guardar_datos_many(json_datas)
+            if not res:
+                self.guardar()
+                self.GuardoDatos = True
+            else:
+                self.elementos = []
+                self.obtener_rooms_info()
+
         else:
             self.conexionM.conectar()
             self.guardar()
             self.GuardoDatos = True
+            
                 
                         
         if self.GuardoDatos:
@@ -210,9 +192,3 @@ class Room(Arreglo):
         data.guardar()
         self.conexionM.guardar_datos_many(json_data)
 
-if __name__ == "__main__":
-    from room import Room
-    room = Room()
-    room.obtener_rooms_info()
-    room.conexionM.conectar()
-    room.leer()
