@@ -277,7 +277,7 @@ class ConexionApi:
 
 class conexionSocketEnviar:
     def __init__(self):
-        self.host = "192.168.137.95"
+        self.host = "192.168.137.83"
         self.port = 1234
         self.client_socket = None
 

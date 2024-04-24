@@ -147,7 +147,7 @@ class Room(Arreglo):
         es = self.conexionA.estado_sensor()
         
         if es['status']:
-            
+                self.enviarnotificacionhumo = False
                 self.ApagarAlarmaSp32()
                 self.conexionA.apagar_alarma(es['habitaciones'])
             
