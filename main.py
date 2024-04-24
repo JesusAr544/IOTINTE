@@ -6,3 +6,6 @@ if __name__ == "__main__":
     room.obtener_rooms_info()
     room.conexionM.conectar()
     room.leer()
+
+
+

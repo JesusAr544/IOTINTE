@@ -18,6 +18,7 @@ class ConexionMongoDB:
             self.db = self.client[self.db_name]
             self.collection = self.db[self.collection_name]
             print("Conexión con la base de datos establecida")
+            self.isconexion = True
             
             return True
         except Exception as e:
@@ -26,7 +27,7 @@ class ConexionMongoDB:
             raise ConnectionError("Error al conectar con la base de datos:", e)
 
     def guardar_datos_many(self, data):
-        print(data)
+        
         try:
             self.collection.insert_many(data)
             print("Datos guardados en la base de datos")
@@ -126,6 +127,7 @@ class ConexionApi:
     def get_rooms(self):
         try:
             if not self.is_conexion:
+                self.is_connection_valid()
                 return None
                 
             path = "/habitacionesTodas"
@@ -151,6 +153,7 @@ class ConexionApi:
     def save_room_data(self, name, data, room_id, date_time):
         try:
             if not self.is_conexion:
+                self.is_connection_valid()
                 return None
                 
             url = "http://18.222.122.162/api/auth/sensores"
@@ -179,7 +182,11 @@ class ConexionApi:
     
     def save_notificacion(self, room_id, type, data):
         try:
+            print("Guardando notificación")
+            print(self.is_conexion)
+            print(data)
             if not self.is_conexion:
+                self.is_connection_valid()
                 return None
                 
             url = "http://18.222.122.162/api/auth/notificaciones"
@@ -190,6 +197,8 @@ class ConexionApi:
             }
             response = self.session.post(url, json=json_data, headers=self.headers)
             if response.status_code == 200:
+                print("Notificación guardada")
+                print(response.json())
                 return response.json()
             else:
                 return False
@@ -204,25 +213,28 @@ class ConexionApi:
     def estado_sensor(self):
             try:
                 if not self.is_conexion:
-                    return None
+                    self.is_connection_valid()
+                    return {'status': False}
                     
-                url = "http://18.222.122.162/api/auth/alarmaestado"
+                url = "http://18.222.122.162/api/auth/alarma/estado"
                 response = self.session.get(url,headers=self.headers)
+                print(response.json())
                 if response.status_code == 200:
                     return response.json()
                 else:
-                    return False
+                    return {'status': False}
             
             except ConnectionError as e:
                 self.is_conexion = False
-                return False
+                return {'status': False}
             except Exception as e:
                 self.is_conexion = False
-                return False
+                return {'status': False}
             
     def apagar_alarma(self,ids):
             try:
                 if not self.is_conexion:
+                    self.is_connection_valid()
                     return None
                 for id in ids:
                     
@@ -244,6 +256,7 @@ class ConexionApi:
     def encender_alarma(self,ids):
             try:
                 if not self.is_conexion:
+                    self.is_connection_valid()
                     return None
                 for id in ids:
                     
@@ -264,7 +277,7 @@ class ConexionApi:
 
 class conexionSocketEnviar:
     def __init__(self):
-        self.host = "192.168.137.16"
+        self.host = "192.168.137.95"
         self.port = 1234
         self.client_socket = None
 

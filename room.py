@@ -11,6 +11,9 @@ class Room(Arreglo):
             self.isarreglo = True
             self.rooms_info = []
             self.GuardoDatos = False 
+            self.enviarnotificacionhumo = False 
+            
+            
         else:
             self.id_room = id_room
             self.nombre = nombre
@@ -96,29 +99,36 @@ class Room(Arreglo):
         for room in self.elementos:
             for sensor in room.sensores.elementos:
                 for sensor_data in dataS:
-                    self.notificar(room.id_room, sensor_data['name'], sensor_data['valor'])         
+                    if sensor_data['name'] == "Humo":
+                        self.notificar(room.id_room, sensor_data['name'], sensor_data['valor'])         
                     if sensor.nombre == sensor_data['name']:
                         new_date = Data(sensor_data['valor'], datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                         sensor.datos.agregar_elemento(new_date)
                         break
+    
         self.guardarDatos()
 
 
     def notificar(self, room_id, sensorname, sensor_data):
-        if sensorname == "Temperatura" and sensor_data['valor'] > 33:                
-            self.conexionA.save_notificacion(room_id, "media", "Temperatura fuera de rango")
-        if sensorname == "Humedad" and sensor_data['valor'] > 80:
-            self.conexionA.save_notificacion(room_id, "media", "Humedad fuera de rango")    
-        if sensorname == "FotoResistencia" and sensor_data['valor'] > 1:
-            self.conexionA.save_notificacion(room_id, "media", "Luz fuera de rango")                   
-        if sensorname == "Voltaje" and sensor_data['valor'] == 5:
-            self.conexionA.save_notificacion(room_id, "media", "Movimiento detectado")
-        if sensorname == "Infrarrojo" and sensor_data['valor'] == 1:
-            self.conexionA.save_notificacion(room_id, "media", "Movimiento detectado")    
-        if sensorname == "Magnetico" and sensor_data['valor'] == 1:
-            self.conexionA.save_notificacion(room_id, "media", "Se abrio la puerta")    
-        if sensorname == "Humo" and sensor_data['valor'] == "Gas Detectado":
-            self.conexionA.save_notificacion(room_id, "media", "Gas detectado")
+        
+        if sensorname == "Humo" and sensor_data == "Gas Detectado":
+                    print("Se detecto gas en la habitacion")
+                    print( self.enviarnotificacionhumo)
+                    if self.enviarnotificacionhumo == False:
+                        print("Se envia notificacion de gas detectado")
+                        self.conexionA.save_notificacion(room_id, "alta", "Gas detectado en la habitacion")
+                        self.enviarnotificacionhumo = True
+        else:
+            if self.enviarnotificacionhumo == False:
+                print("no se detecto gas en la habitacion")
+            else:
+                    print("Se envia notificacion de gas detectado")
+                    self.enviarnotificacionhumo = False
+                        
+                    
+                
+
+            
     
     def ApagarAlarmaSp32(self):
         from conexion import conexionSocketEnviar
@@ -135,8 +145,12 @@ class Room(Arreglo):
             return
         
         es = self.conexionA.estado_sensor()
+        
         if es['status']:
-            self.conexionA.apagar_alarma(es['habitaciones'])
+            
+                self.ApagarAlarmaSp32()
+                self.conexionA.apagar_alarma(es['habitaciones'])
+            
             
         json_datas = []
         for room in self.elementos:
